@@ -5,6 +5,7 @@ import argparse
 import pandas as pd
 import numpy as np
 import tensorflow.contrib.learn as skflow
+import tensorflow as tf
 
 def give_data(path_train,path_test):
     train_types = {'Semana':np.uint8,'Agencia_ID':np.uint16, 'Ruta_SAK':np.uint16, 'Cliente_ID':np.uint32,'Producto_ID':np.uint16, 'Demanda_uni_equil':np.uint32}
@@ -14,11 +15,13 @@ def give_data(path_train,path_test):
     df_train = pd.read_csv(path_train, usecols=train_types.keys(), dtype=train_types)
     df_test = pd.read_csv(path_test,usecols=test_types.keys(), dtype=test_types)
     return df_train,df_test
+
 def temp_preproc_weeks(dataframe,size):
     weeks=[]
     for i in np.unique(dataframe.Semana):
         weeks.append(df_train[dataframe.Semana==i].sample(size))
     return weeks
+
 def preproc_weeks(dataframe):
     weeks=[]
 
@@ -34,6 +37,7 @@ def preproc_weeks(dataframe):
     return weeks
     PROBLEMA AL CONCATENAR
     """
+
 def data_preproces(weeks,logsize):
     #dataframe to matrix
     for i in range(len(weeks)):
@@ -64,7 +68,6 @@ def model(features,labels,test_size):
     return regressor
 
 
-
 if __name__ == '__main__':
     p = argparse.ArgumentParser("Statistics data")
     p.add_argument("--train",default="data/train.csv",
@@ -83,4 +86,5 @@ if __name__ == '__main__':
     print ("All data readed...")
     weeks=temp_preproc_weeks(df_train,2)
     features,labels=data_preproces(weeks,2)
+    features = tf.cast(features, tf.int32)
     model(features,labels,2)
