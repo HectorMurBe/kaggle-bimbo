@@ -6,12 +6,13 @@ import pandas as pd
 import numpy as np
 import tensorflow.contrib.learn as skflow
 from sklearn import metrics,preprocessing
+#import models_tutogithub as tflinear
 
 
 def give_data(path_train,path_test):
-    train_types = {'Semana':np.uint8,'Agencia_ID':np.uint16, 'Ruta_SAK':np.uint16, 'Cliente_ID':np.uint32,'Producto_ID':np.uint16, 'Demanda_uni_equil':np.uint32}
+    train_types = {'Semana':np.uint32,'Agencia_ID':np.uint32, 'Ruta_SAK':np.uint32, 'Cliente_ID':np.uint32,'Producto_ID':np.uint32, 'Demanda_uni_equil':np.uint32}
 
-    test_types = {'Semana':np.uint8,'Agencia_ID':np.uint16, 'Ruta_SAK':np.uint16, 'Cliente_ID':np.uint32,
+    test_types = {'Semana':np.uint32,'Agencia_ID':np.uint32, 'Ruta_SAK':np.uint32, 'Cliente_ID':np.uint32,
                       'Producto_ID':np.uint16, 'id':np.uint16}
     df_train = pd.read_csv(path_train, usecols=train_types.keys(), dtype=train_types)
     df_test = pd.read_csv(path_test,usecols=test_types.keys(), dtype=test_types)
@@ -19,12 +20,12 @@ def give_data(path_train,path_test):
 def temp_preproc_weeks(dataframe,size):
     weeks=[]
     for i in np.unique(dataframe.Semana):
-        weeks.append(df_train[dataframe.Semana==i].sample(size).apply(lambda x: x.astype("float64")))#convert uint32 to TensorFlow DType
+        weeks.append(df_train[dataframe.Semana==i].sample(size))
     return weeks
 def preproc_weeks(dataframe):
     weeks=[]
     for i in np.unique(dataframe.Semana):
-        weeks.append(df_train[dataframe.Semana==i].apply(lambda x: x.astype("float64")))#convert uint32 to TensorFlow DType
+        weeks.append(df_train[dataframe.Semana==i])
         #TODO:ORDER DATA by cliente,ruta,producto; Weeks have diferent sizes
     return weeks
 """def data_preproces(weeks,logsize):
@@ -56,13 +57,16 @@ def data_preproces(weeks,logsize):
     #print (labels)
     return np.array(features),np.array(labels)
 
-def model(features,labels,test_size):
-    features = preprocessing.StandardScaler().fit_transform(features)
-    regressor = skflow.TensorFlowLinearRegressor()
-    regressor.fit(features[:-test_size], labels[:-test_size])
-    score = metrics.mean_squared_error(regressor.predict(features[-test_size:]), labels[-test_size:])
+def model(features,labels,labels_,func,test_size):
+
+    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
+    regressor.fit(features[:-test_size], labels_[:-test_size])
+    score = metrics.mean_squared_error(func.inverse_transform(regressor.predict(features[-test_size:])), labels[-test_size:])
     print ("MSE: ")
     print (score)
+    print (features[-1])
+    print (labels[-1])
+    print (func.inverse_transform(regressor.predict(np.array([features[-1]]))))
     return regressor
 if __name__ == '__main__':
     p = argparse.ArgumentParser("Statistics data")
@@ -80,9 +84,16 @@ if __name__ == '__main__':
     print("Reading data...")
     df_train,df_test=give_data(opts.train,opts.test)
     print ("All data readed...")
-    weeks=temp_preproc_weeks(df_train,20000)
+    weeks=temp_preproc_weeks(df_train,40000)
     #weeks=preproc_weeks(df_train)
+
     features,labels=data_preproces(weeks,2)
+    features = preprocessing.StandardScaler().fit_transform(features)
+    func_label = preprocessing.StandardScaler().fit(labels)
+    labels_=func_label.transform(labels)
     print ("Starting train")
-    model(features,labels,20000)
+    model(features,labels,labels_,func_label,40000)
     print ("END :D!")
+    """print("Tf model:")
+
+    tflinear.LinerReg(features,labels,20,17)"""
