@@ -5,13 +5,17 @@ import argparse
 import pandas as pd
 import numpy as np
 import tensorflow.contrib.learn as skflow
-from sklearn import metrics,preprocessing, linear_model
+import tensorflow as tf
+from sklearn import metrics,preprocessing
+from  sklearn.svm import SVR
+from sklearn.linear_model import LinearRegression
+#import models_tutogithub as tflinear
 
 
 def give_data(path_train,path_test):
-    train_types = {'Semana':np.uint8,'Agencia_ID':np.uint16, 'Ruta_SAK':np.uint16, 'Cliente_ID':np.uint32,'Producto_ID':np.uint16, 'Demanda_uni_equil':np.uint32}
+    train_types = {'Semana':np.uint32,'Agencia_ID':np.uint32, 'Ruta_SAK':np.uint32, 'Cliente_ID':np.uint32,'Producto_ID':np.uint32, 'Demanda_uni_equil':np.uint32}
 
-    test_types = {'Semana':np.uint8,'Agencia_ID':np.uint16, 'Ruta_SAK':np.uint16, 'Cliente_ID':np.uint32,
+    test_types = {'Semana':np.uint32,'Agencia_ID':np.uint32, 'Ruta_SAK':np.uint32, 'Cliente_ID':np.uint32,
                       'Producto_ID':np.uint16, 'id':np.uint16}
     df_train = pd.read_csv(path_train, usecols=train_types.keys(), dtype=train_types)
     df_test = pd.read_csv(path_test,usecols=test_types.keys(), dtype=test_types)
@@ -19,13 +23,13 @@ def give_data(path_train,path_test):
 def temp_preproc_weeks(dataframe,size=None):
     weeks=[]
     for i in np.unique(dataframe.Semana):
-        if size:
-            weeks.append(df_train[dataframe.Semana==i].sample(size).apply(lambda x: x.astype("float64")))#convert uint32 to TensorFlow DType
+        weeks.append(dataframe[dataframe.Semana==i].sample(size).groupby(["Agencia_ID","Ruta_SAK","Cliente_ID","Producto_ID"])["Demanda_uni_equil"])
+        print (weeks[i])
     return weeks
 def preproc_weeks(dataframe):
     weeks=[]
     for i in np.unique(dataframe.Semana):
-        weeks.append(df_train[dataframe.Semana==i].apply(lambda x: x.astype("float64")))#convert uint32 to TensorFlow DType
+        weeks.append(df_train[dataframe.Semana==i])
         #TODO:ORDER DATA by cliente,ruta,producto; Weeks have diferent sizes
     return weeks
 """def data_preproces(weeks,logsize):
@@ -36,7 +40,47 @@ def preproc_weeks(dataframe):
     return weeks
     PROBLEMA AL CONCATENAR
     """
-def data_preproces(weeks,logsize):
+def data_preproces(weeks):
+    weeks=pd.concat([df_train[df_train.Semana==(3)].head(100000),df_train[df_train.Semana==(4)].head(100000),df_train[df_train.Semana==(5)].head(100000)])
+    weeks['MeanP'] = weeks.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    print ('Got MeanP')
+    weeks['MeanC'] = weeks.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    print ('Got MeanC')
+    group=weeks.groupby(["Cliente_ID","Agencia_ID","Producto_ID","Ruta_SAK","MeanP","MeanC"])#TODO: change mini for weeks
+    features=[]
+    print ('Got groups')
+    labels=[]
+    for i in range(4,5):
+        print ('i',i)
+        for group,index in group:
+            #print ('index',index.index)
+            stds=[0,0]
+            val_weeks=index.Semana.as_matrix()
+            val_std=index.Demanda_uni_equil.as_matrix()
+            if (i+1) in val_weeks:
+                print ("LABEL: ")
+                print (val_std[-1])
+                labels.append(val_std[-1])
+                val_std=val_std[:-1]
+                val_weeks=val_weeks[:-1]
+                print ("val_weeks:")
+                print (val_weeks)
+                print ("std:")
+                print (val_std)
+                for week,std in zip(val_weeks,val_std):
+                    stds[week%(i-1)]=std
+                print ("group keys:")
+                print (group)
+                new_feature=np.concatenate(([group[-2],group[-1]],stds)).astype("float32")
+                print ("New features:")
+                print (new_feature)
+                features.append(new_feature)
+
+    return np.array(features),np.array(labels).astype("float32")
+
+
+
+def old_data_preproces(weeks,logsize):
     #dataframe to matrix
     for i in range(len(weeks)):
         weeks[i]=weeks[i].as_matrix()
@@ -58,14 +102,19 @@ def data_preproces(weeks,logsize):
     return np.array(features),np.array(labels)
 
 def model(features,labels,test_size):
-    features = preprocessing.StandardScaler().fit_transform(features)
-    regressor = skflow.TensorFlowLinearRegressor()
+    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
+    #regressor = SVR()
+    #regressor = LinearRegression()
+    print(features[:-test_size].shape)
     regressor.fit(features[:-test_size], labels[:-test_size])
-    preds=regressor.predict(features[-test_size:])
+    preds=np.round(regressor.predict(features[-test_size:]))
     print(preds[:2],labels[-test_size:][:2])
     score = metrics.mean_squared_error(preds, labels[-test_size:])
     print ("MSE: ")
     print (score)
+    print (features[-1])
+    print (labels[-1])
+    print (regressor.predict(np.array([features[-1]])))
     return regressor
 
 
@@ -99,9 +148,29 @@ if __name__ == '__main__':
     print("Reading data...")
     df_train,df_test=give_data(opts.train,opts.test)
     print ("All data readed...")
-    weeks=temp_preproc_weeks(df_train,2000000)
-    #weeks=preproc_weeks(df_train)
-    features,labels=data_preproces(weeks,3)
+    features,labels=data_preproces(df_train)
     print ("Starting train")
-    model2(features,labels,20000)
+    model(features,labels,800)
     print ("END :D!")
+    print(features.shape)
+    print(labels.shape)
+
+
+    #weeks=preproc_weeks(df_train)
+    """
+    features,labels=data_preproces(weeks,2)
+    features = preprocessing.StandardScaler().fit_transform(features)
+    func_label = preprocessing.StandardScaler().fit(labels)
+    labels_=func_label.transform(labels)
+    print ("Starting train")
+    model(features,labels,labels_,func_label,20)
+    print ("END :D!")
+    print("Tf model:")
+
+    tflinear.LinerReg(features,labels,20,17)
+
+
+
+
+    pd.concat([df_train[df_train.Semana==3].head(1000),df_train[df_train.Semana==4].head(1000),df_train[df_train.Semana==5].head(1000)])
+     group=mini.groupby(["Cliente_ID","Agencia_ID","Producto_ID","Ruta_SAK","MeanP","MeanC"])"""
