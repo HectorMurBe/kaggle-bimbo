@@ -5,6 +5,7 @@ import argparse
 import pandas as pd
 import numpy as np
 import tensorflow.contrib.learn as skflow
+import tensorflow as tf
 from sklearn import metrics,preprocessing
 #import models_tutogithub as tflinear
 
@@ -20,7 +21,8 @@ def give_data(path_train,path_test):
 def temp_preproc_weeks(dataframe,size):
     weeks=[]
     for i in np.unique(dataframe.Semana):
-        weeks.append(df_train[dataframe.Semana==i].sample(size))
+        weeks.append(dataframe[dataframe.Semana==i].sample(size).groupby(["Agencia_ID","Ruta_SAK","Cliente_ID","Producto_ID"])["Demanda_uni_equil"])
+        print (weeks[i])
     return weeks
 def preproc_weeks(dataframe):
     weeks=[]
@@ -36,7 +38,46 @@ def preproc_weeks(dataframe):
     return weeks
     PROBLEMA AL CONCATENAR
     """
-def data_preproces(weeks,logsize):
+def data_preproces(weeks):
+    weeks['MeanP'] = weeks.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    print ('Got MeanP')
+    weeks['MeanC'] = weeks.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    print ('Got MeanC')
+    features=[]
+    labels=[]
+    for i in range(4,9):
+        mini=pd.concat([df_train[df_train.Semana==(i-1)].head(1000),df_train[df_train.Semana==(i)].head(1000),df_train[df_train.Semana==(i+1)].head(1000)])
+        group=mini.groupby(["Cliente_ID","Agencia_ID","Producto_ID","Ruta_SAK","MeanP","MeanC"])#TODO: change mini for weeks
+        for group,index in zip(group.groups.keys(),group.groups.values()):
+            stds=[0,0]
+            val_weeks=np.unique(weeks.loc[index].Semana)
+            val_std=mini.loc[index].Demanda_uni_equil.as_matrix()
+            if (i+1) in val_weeks:
+                print ("LABEL: ")
+                print (val_std[-1])
+                labels.append(val_std[-1])
+                val_std=val_std[:-1]
+                val_weeks=val_weeks[:-1]
+                print ("val_weeks:")
+                print (val_weeks)
+                print ("std:")
+                print (val_std)
+                for week,std in zip(val_weeks,val_std):
+                    stds[week%(i-1)]=std
+                print ("group keys:")
+                print (group)
+                new_feature=np.concatenate((group,stds)).astype("float32")
+                print ("New features:")
+                print (new_feature)
+
+
+
+
+    return np.array(features),np.array(labels).astype("float32")
+
+
+
+def old_data_preproces(weeks,logsize):
     #dataframe to matrix
     for i in range(len(weeks)):
         weeks[i]=weeks[i].as_matrix()
@@ -57,16 +98,16 @@ def data_preproces(weeks,logsize):
     #print (labels)
     return np.array(features),np.array(labels)
 
-def model(features,labels,labels_,func,test_size):
+def model(features,labels,test_size):
 
     regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
-    regressor.fit(features[:-test_size], labels_[:-test_size])
-    score = metrics.mean_squared_error(func.inverse_transform(regressor.predict(features[-test_size:])), labels[-test_size:])
+    regressor.fit(features[:-test_size], labels[:-test_size])
+    score = metrics.mean_squared_error(regressor.predict(features[-test_size:]), labels[-test_size:])
     print ("MSE: ")
     print (score)
     print (features[-1])
     print (labels[-1])
-    print (func.inverse_transform(regressor.predict(np.array([features[-1]]))))
+    print (regressor.predict(np.array([features[-1]])))
     return regressor
 if __name__ == '__main__':
     p = argparse.ArgumentParser("Statistics data")
@@ -84,16 +125,25 @@ if __name__ == '__main__':
     print("Reading data...")
     df_train,df_test=give_data(opts.train,opts.test)
     print ("All data readed...")
-    weeks=temp_preproc_weeks(df_train,40000)
+    features,labels=data_preproces(df_train)
+    print ("Starting train")
+    model(features,labels,2000)
+    print ("END :D!")
     #weeks=preproc_weeks(df_train)
-
+    """
     features,labels=data_preproces(weeks,2)
     features = preprocessing.StandardScaler().fit_transform(features)
     func_label = preprocessing.StandardScaler().fit(labels)
     labels_=func_label.transform(labels)
     print ("Starting train")
-    model(features,labels,labels_,func_label,40000)
+    model(features,labels,labels_,func_label,20)
     print ("END :D!")
-    """print("Tf model:")
+    print("Tf model:")
 
-    tflinear.LinerReg(features,labels,20,17)"""
+    tflinear.LinerReg(features,labels,20,17)
+
+
+
+
+    pd.concat([df_train[df_train.Semana==3].head(1000),df_train[df_train.Semana==4].head(1000),df_train[df_train.Semana==5].head(1000)])
+     group=mini.groupby(["Cliente_ID","Agencia_ID","Producto_ID","Ruta_SAK","MeanP","MeanC"])"""
