@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow.contrib.learn as skflow
 import tensorflow as tf
+from sklearn import metrics,preprocessing
 
 def verbose(*args,**kargs):
     print(*args,**kargs)
@@ -12,7 +13,7 @@ def verbose(*args,**kargs):
 
 def rmsle(y, y0):
     assert len(y) == len(y0)
-    return np.sqrt(np.mean(np.power(np.log1p(y)-np.log1p(y0), 2)))
+    return np.sqrt(np.mean(np.power(np.log1p(y+1)-np.log1p(y0+1), 2)))
 
 
 def load_train(filepath):
@@ -102,8 +103,14 @@ def train_test(features,labels,test_size):
     regressor.fit(features[:-test_size], labels[:-test_size])
     verbose ("Predict...")
     preds=regressor.predict(features[-test_size:])
+    preds[preds<0]=0
     verbose(preds)
     verbose(len(preds))
+    verbose("MSE: ")
+    score = metrics.mean_squared_error(preds, labels[-test_size:])
+    verbose("Original",score)
+    score = metrics.mean_squared_error(np.round(preds), labels[-test_size:])
+    verbose("round",score)
     verbose ("RMSLE:")
     score = rmsle(preds, labels[-test_size:])
     verbose ("Original",score)
