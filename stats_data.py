@@ -20,37 +20,54 @@ def give_data(path_train,path_test):
     df_train = pd.read_csv(path_train, usecols=train_types.keys(), dtype=train_types)
     df_test = pd.read_csv(path_test,usecols=test_types.keys(), dtype=test_types)
     return df_train,df_test
-def temp_preproc_weeks(dataframe,size=None):
-    weeks=[]
-    for i in np.unique(dataframe.Semana):
-        weeks.append(dataframe[dataframe.Semana==i].sample(size).groupby(["Agencia_ID","Ruta_SAK","Cliente_ID","Producto_ID"])["Demanda_uni_equil"])
-        print (weeks[i])
-    return weeks
-def preproc_weeks(dataframe):
-    weeks=[]
-    for i in np.unique(dataframe.Semana):
-        weeks.append(df_train[dataframe.Semana==i])
-        #TODO:ORDER DATA by cliente,ruta,producto; Weeks have diferent sizes
-    return weeks
-"""def data_preproces(weeks,logsize):
-    features=[]
-    labels=[]
-    for i in  range(len(weeks)-logsize-1):
-        weeks[i]=pd.concat(weeks[i:(i+logsize)],axis=1)
-    return weeks
-    PROBLEMA AL CONCATENAR
-    """
+
+def preproc_weeks(weeks):
+    ordered_weeks=[]
+    for i in reversed(range(5,10)):
+        #Take the weeks you want to log
+        ant_ant=weeks[weeks.Semana==i-2]
+        ant=weeks[weeks.Semana==i-1]
+        act=weeks[weeks.Semana==i]
+        #Rename columns Demanda_uni_equil for log
+        ant_ant.drop(["Semana"],inplace=True,axis=1)#Drop duplicate column
+        ant.drop(["Semana"],inplace=True,axis=1)#Drop duplicate column
+        ant_ant.columns=[u'Agencia_ID', u'Ruta_SAK', u'Cliente_ID', u'Producto_ID',u'l2']
+        ant.columns=[u'Agencia_ID', u'Ruta_SAK', u'Cliente_ID', u'Producto_ID',u'l1']
+        ant.rename(columns = {'Demanda_uni_equil':'l1'})
+        #First merge
+        act=pd.merge(act,ant,how="left",on=["Agencia_ID","Ruta_SAK","Cliente_ID","Producto_ID"])
+        #Second merge
+        act=pd.merge(act,ant_ant,how="left",on=["Agencia_ID","Ruta_SAK","Cliente_ID","Producto_ID"])
+        ordered_weeks.append(act.fillna(0))
+    print (ordered_weeks[0].head())
+    return ordered_weeks
+
+
+
+
+
+
 def data_preproces(weeks):
-    weeks=pd.concat([df_train[df_train.Semana==(3)].head(100000),df_train[df_train.Semana==(4)].head(100000),df_train[df_train.Semana==(5)].head(100000)])
+    size=10000
+
+
+    weeks=pd.concat([
+        weeks[weeks.Semana==(7)].head(size),
+        weeks[weeks.Semana==(8)].head(size),
+        weeks[weeks.Semana==(9)].head(size)])
     weeks['MeanP'] = weeks.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     print ('Got MeanP')
     weeks['MeanC'] = weeks.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     print ('Got MeanC')
-    group=weeks.groupby(["Cliente_ID","Agencia_ID","Producto_ID","Ruta_SAK","MeanP","MeanC"])#TODO: change mini for weeks
+    weeks['MeanA'] = weeks.groupby('Agencia_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    print ('Got MeanA')
+    weeks['MeanR'] = weeks.groupby('Ruta_SAK')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    print ('Got MeanR')
+    group=weeks.groupby(["Cliente_ID","Agencia_ID","Producto_ID","Ruta_SAK","MeanP","MeanC","MeanA","MeanR"])#TODO: change mini for weeks
     features=[]
     print ('Got groups')
     labels=[]
-    for i in range(4,5):
+    for i in range(8,9):
         print ('i',i)
         for group,index in group:
             #print ('index',index.index)
@@ -71,7 +88,9 @@ def data_preproces(weeks):
                     stds[week%(i-1)]=std
                 print ("group keys:")
                 print (group)
-                new_feature=np.concatenate(([group[-2],group[-1]],stds)).astype("float32")
+                print (group[-4:])
+                print (stds)
+                new_feature=np.concatenate((group[-4:],stds)).astype("float32")
                 print ("New features:")
                 print (new_feature)
                 features.append(new_feature)
@@ -148,12 +167,14 @@ if __name__ == '__main__':
     print("Reading data...")
     df_train,df_test=give_data(opts.train,opts.test)
     print ("All data readed...")
+    preproc_weeks(df_train)
+    """
     features,labels=data_preproces(df_train)
     print ("Starting train")
-    model(features,labels,800)
+    model(features,labels,200)
     print ("END :D!")
     print(features.shape)
-    print(labels.shape)
+    print(labels.shape)"""
 
 
     #weeks=preproc_weeks(df_train)
@@ -166,11 +187,6 @@ if __name__ == '__main__':
     model(features,labels,labels_,func_label,20)
     print ("END :D!")
     print("Tf model:")
-
     tflinear.LinerReg(features,labels,20,17)
-
-
-
-
     pd.concat([df_train[df_train.Semana==3].head(1000),df_train[df_train.Semana==4].head(1000),df_train[df_train.Semana==5].head(1000)])
      group=mini.groupby(["Cliente_ID","Agencia_ID","Producto_ID","Ruta_SAK","MeanP","MeanC"])"""
