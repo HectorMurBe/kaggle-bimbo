@@ -56,6 +56,7 @@ def prepare_train_data(data,size=1000000):
         else:
             weeks.append(data[data.Semana==i])
     temp=data[data.Semana==9].head(size)
+    test_labels=temp.Demanda_uni_equil.values
     temp["Demanda_uni_equil"]=0
     weeks.append(temp)
     data=pd.concat(weeks)
@@ -78,7 +79,7 @@ def prepare_train_data(data,size=1000000):
 
     data,test=preproc_weeks(data)
     train_labels=data.Demanda_uni_equil.values
-    test_labels=test.Demanda_uni_equil.values
+
     data.drop(["Producto_ID","Ruta_SAK","Cliente_ID","Agencia_ID","Semana","Demanda_uni_equil"],inplace=True,axis=1)#Not usefull columns from here
     test.drop(["Producto_ID","Ruta_SAK","Cliente_ID","Agencia_ID","Semana","Demanda_uni_equil"],inplace=True,axis=1)#Not usefull columns from here
     return data.as_matrix(),train_labels,test.as_matrix(),test_labels
