@@ -78,6 +78,7 @@ def prepare_train_data(data,span=3,size=100000):
     weeks=[]
     for i in range(3,10):
         weeks.append(data[data.Semana==i])
+    test_size=weeks[-1].shape[0]
     data=pd.concat(weeks)
 
     del data
@@ -91,7 +92,7 @@ def prepare_train_data(data,span=3,size=100000):
         feats.append(feats_)
         labels.append(labels_)
         
-    return np.vstack(feats),np.hstack(labels)
+    return np.vstack(feats),np.hstack(labels),test_size
 
 
 def train_test(features,labels,test_size):
@@ -129,7 +130,7 @@ if __name__ == '__main__':
     p.add_argument("--test_size",default=1000,type=int,
             action="store", dest="test_size",
             help="Size of records per week [all]")
-    p.add_argument("--size",default=None,type=int,
+    p.add_argument("--size",default=4000000,type=int,
             action="store", dest="size",
             help="Size of records per week [all]")
     p.add_argument("--span",default=3,type=int,
@@ -149,9 +150,9 @@ if __name__ == '__main__':
     df_train=load_train(opts.train)
     verbose("All data readed...")
     verbose(df_train.info(memory_usage=True))
-    feats,labels=prepare_train_data(df_train,size=opts.size)
+    feats,labels,test_size=prepare_train_data(df_train,size=opts.size)
 
-    train_test(feats,labels,opts.test_size)
+    train_test(feats,labels,test_size)
 
 
     
