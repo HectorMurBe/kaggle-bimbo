@@ -224,7 +224,7 @@ if __name__ == '__main__':
     verbose("Loading test data...")
     df_test=load_test(opts.train)
     df_test["tst"]=1
-    df_test=temp(df_test,10)
+    df_test=temp(df_test)
     print (df_test.head(20))
     weeks,ids=prepare_train_data(df_train,df_test,size=opts.size)
     features,labels=getraindata(weeks[:-2],span=3)
