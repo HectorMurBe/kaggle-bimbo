@@ -15,6 +15,7 @@ def temp(data,size):
             weeks.append(data[data.Semana==i])
     data=pd.concat(weeks)
     data["Demanda_uni_equil"]=0
+    print (data.tail())
     return data
 
 def verbose(*args,**kargs):
@@ -31,7 +32,7 @@ def load_train(filepath):
     return pd.read_csv(filepath, usecols=types.keys(), dtype=types)
 
 def load_test(filepath):
-    types = {'id':np.int8,'Semana':np.int8, 'Agencia_ID':np.int16,
+    types = {'id':np.int32,'Semana':np.int8, 'Agencia_ID':np.int16,
              'Ruta_SAK':np.int16, 'Cliente_ID':np.int32, 'Producto_ID':np.int32 }
     return pd.read_csv("./data/test.csv", usecols=types.keys(), dtype=types)
 
@@ -100,6 +101,7 @@ def prepare_train_data(data,test,size=100000):
 
 
     summary={}
+    """
     data['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     test['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     verbose("Calculated meanP")
@@ -115,9 +117,33 @@ def prepare_train_data(data,test,size=100000):
     data['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
     test['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
     verbose("Calculated meanPC")
+    """
+    data['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanP")
+    data['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanC")
+    data['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanPA")
+    data['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanPR")
+    data['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
+    verbose("Calculated meanPC")
+    test_ = data.loc[:, ['Producto_ID', 'meanP']].drop_duplicates(subset=['Producto_ID'])
+    test = test.merge(test_,how='left',on=['Producto_ID'],copy=False)
+    test_ = data.loc[:, ['Cliente_ID', 'meanC']].drop_duplicates(subset=['Cliente_ID'])
+    test = test.merge(test_,how='left',on=['Cliente_ID'],copy=False)
+    test_ = data.loc[:, ['Producto_ID','Agencia_ID','meanPA']].drop_duplicates(subset=['Producto_ID','Agencia_ID'])
+    test = test.merge(test_,how='left',on=['Producto_ID','Agencia_ID'],copy=False)
+    test_ = data.loc[:, ['Producto_ID','Ruta_SAK','meanPR']].drop_duplicates(subset=['Producto_ID','Ruta_SAK'])
+    test = test.merge(test_,how='left',on=['Producto_ID','Ruta_SAK'],copy=False)
+    test_ = data.loc[:, ['Producto_ID','Cliente_ID','meanPC']].drop_duplicates(subset=['Producto_ID','Cliente_ID'])
+    test = test.merge(test_,how='left',on=['Producto_ID','Cliente_ID'],copy=False)
+    del test_
+
+    verbose("Calculated meanPC")
     test.fillna(0, inplace=True)
     data=pd.concat([data,test])
-    print (data.tail())
+    #print (data.tail())
 
 
     verbose(data.info(memory_usage=True))
@@ -125,13 +151,21 @@ def prepare_train_data(data,test,size=100000):
     verbose('Isolating weeks (again)')
     ids=data[data.tst==1]["id"].values
     data.drop(["tst","id"],inplace=True,axis=1)
+    print ("Data before order")
+    data=data[["Semana",'Agencia_ID','Cliente_ID','Producto_ID','Ruta_SAK','Demanda_uni_equil','meanP','meanC','meanPA',"meanPR",'meanPC']]
+    print (data.head(50))
     weeks=[]
     for i in range(3,12):
         weeks.append(data[data.Semana==i])
+    #test_size=weeks[-3].shape[0]
     data=pd.concat(weeks)
     print (data.tail(50))
     del data
+    print (">>>>>>>>>>>>>>>IDS")
     print (ids)
+    print (">>>>>>>>>>>>>>>Order")
+    print (weeks[0].head(50))
+
     return weeks,ids
 def predweeks(weeks,regressor,span=3):
     features=extract_span2(weeks[:-1],5,span)
@@ -143,8 +177,8 @@ def predweeks(weeks,regressor,span=3):
     print (predictions20)
     return np.concatenate((predictions10, predictions20))
 
-def writesubmision(ids,predictions,path="./data/sumbision.csv"):
-    submision=pd.DataFrame({"Demanda_uni_equil":predictions,"id":ids.astype("int8")})
+def writesubmision(ids,predictions,path="./data/submission.csv"):
+    submision=pd.DataFrame({"Demanda_uni_equil":predictions,"id":ids.astype("int32")})
     submision.to_csv(path,index=False)
 
 def getraindata(weeks,span=3):
@@ -224,12 +258,15 @@ if __name__ == '__main__':
     verbose("Loading test data...")
     df_test=load_test(opts.train)
     df_test["tst"]=1
-    df_test=temp(df_test)
+    df_test=temp(df_test,False)
     print (df_test.head(20))
     weeks,ids=prepare_train_data(df_train,df_test,size=opts.size)
     features,labels=getraindata(weeks[:-2],span=3)
+    """print ("Test size >>>>>>>>>>>>")
+    print (test_size)
+    train_test(features,labels,test_size)"""
     regressor=train(features,labels)
     predictions=predweeks(weeks[-4:],regressor)
     print ("Pedicciones juntas: ")
     print (predictions)
-    writesubmision(ids,predictions,path="./data/sumbision.csv")
+    writesubmision(ids,predictions)
