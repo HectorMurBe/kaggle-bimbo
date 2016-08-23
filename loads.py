@@ -32,14 +32,14 @@ def load_test(filepath):
              'Demanda_uni_equil':np.int8}
     return pd.read_csv(filepath, usecols=types.keys(), dtype=types)
 
-def extract_span(weeks,ix_pred,span):
+def extract_span(weeks,ix_pred,span,pivot=3):
     verbose("Processing week:",ix_pred)
     first=True
     idx_data={}
-    f_=np.zeros([weeks[ix_pred-3].shape[0],span-1+5])
-    l_=np.zeros(weeks[ix_pred-3].shape[0])
+    f_=np.zeros([weeks[ix_pred-pivot].shape[0],span-1+5])
+    l_=np.zeros(weeks[ix_pred-pivot].shape[0])
     verbose("Creating matrix for week",f_.shape)
-    semana=ix_pred-3
+    semana=ix_pred-pivot
     for val,row in enumerate(weeks[semana].itertuples()):
         idx_data[row[2:6]]=val
         l_[val]=row[6]
@@ -49,8 +49,8 @@ def extract_span(weeks,ix_pred,span):
         f_[val,span+2]=row[10]
         f_[val,span+3]=row[11]
     for i in range(span)[1:span]:
-        semana=ix_pred-i-3
-        verbose("Adding info week",semana+3)
+        semana=ix_pred-i-pivot
+        verbose("Adding info week",semana+pivot)
         for row in weeks[semana].itertuples():
             try:
                 val=idx_data[row[2:6]]
@@ -68,7 +68,7 @@ def prepare_train_data(data,span=3,size=100000):
         else:
             weeks.append(data[data.Semana==i])
 
-    test=data[data.Semana==9].head(size)
+    test=data[data.Semana==9]
     print (test.head())
     data=pd.concat(weeks)
     summary={}
@@ -96,44 +96,54 @@ def prepare_train_data(data,span=3,size=100000):
 
     verbose('Isolating weeks (again)')
     weeks=[]
-    for i in range(3,10):
+    weeks_test=[]
+    for i in range(3,9):
         weeks.append(data[data.Semana==i])
-    test_size=weeks[-1].shape[0]
-    data=pd.concat(weeks)
+    for i in range(7,10):
+        weeks_test.append(data[data.Semana==i])
 
     del data
 
-    verbose('Extracting span')
+    verbose('Extracting span train')
     feats=[]
     labels=[]
-    for i in range(3+span-1,10):
+    for i in range(3+span-1,9):
         feats_,labels_=extract_span(weeks,i,span)
         feats.append(feats_)
         labels.append(labels_)
 
-    return np.vstack(feats),np.hstack(labels),test_size
+    verbose('Extracting span test1')
+    feats_test=[]
+    labels_test=[]
+    for i in range(7+span-1,10):
+        feats_,labels_=extract_span(weeks_test,i,span,pivot=8)
+        feats_test.append(feats_)
+        labels_test.append(labels_)
 
-def train_test(features,labels,test_size):
+    return np.vstack(feats),np.hstack(labels),np.vstack(feats_test),np.hstack(labels_test)
+
+def train_test(features,labels,features_test,labels_test):
     verbose ("Features size",features.shape)
     verbose ("Labels size",labels.shape)
-    verbose ("Size test",test_size)
+    verbose ("Features size test",features_test.shape)
+    verbose ("Labels size test",labels_test.shape)
     regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
     verbose ("Training...")
-    regressor.fit(features[:-test_size], labels[:-test_size])
+    regressor.fit(features, labels)
     verbose ("Predict...")
-    preds=regressor.predict(features[-test_size:])
+    preds=regressor.predict(features_test)
     preds[preds<0]=0
     verbose(preds)
     verbose(len(preds))
     verbose("MSE: ")
-    score = metrics.mean_squared_error(preds, labels[-test_size:])
+    score = metrics.mean_squared_error(preds, labels_test)
     verbose("Original",score)
-    score = metrics.mean_squared_error(np.round(preds), labels[-test_size:])
+    score = metrics.mean_squared_error(np.round(preds), labels_test)
     verbose("round",score)
     verbose ("RMSLE:")
-    score = rmsle(preds, labels[-test_size:])
+    score = rmsle(preds, labels_test)
     verbose ("Original",score)
-    score = rmsle(np.round(preds), labels[-test_size:])
+    score = rmsle(np.round(preds), labels_test)
     verbose ("round",score)
 
 if __name__ == '__main__':
@@ -173,6 +183,6 @@ if __name__ == '__main__':
     print (df_test[1].head(10))"""
     verbose("All data readed...")
     verbose(df_train.info(memory_usage=True))
-    feats,labels,test_size=prepare_train_data(df_train,size=opts.size)
+    feats,labels,test_feats,test_labels=prepare_train_data(df_train,size=opts.size)
 
-    train_test(feats,labels,test_size)
+    train_test(feats,labels,test_feats,test_labels)
