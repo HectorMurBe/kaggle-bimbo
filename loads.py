@@ -6,13 +6,17 @@ import pandas as pd
 import tensorflow.contrib.learn as skflow
 import tensorflow as tf
 from sklearn import metrics,preprocessing
-def temp(test,size):
-    for i in range(10,11):
+def temp(data,size):
+    weeks=[]
+    for i in range(10,12):
         if size:
             weeks.append(data[data.Semana==i].head(size))
         else:
             weeks.append(data[data.Semana==i])
     data=pd.concat(weeks)
+    data["Demanda_uni_equil"]=0
+    print (data.tail())
+    return data
 
 def verbose(*args,**kargs):
     print(*args,**kargs)
@@ -26,20 +30,20 @@ def load_train(filepath):
              'Ruta_SAK':np.int16, 'Cliente_ID':np.int32, 'Producto_ID':np.int32,
              'Demanda_uni_equil':np.int16}
     return pd.read_csv(filepath, usecols=types.keys(), dtype=types)
-def load_test(filepath):
-    types = {'Semana':np.int8, 'Agencia_ID':np.int16,
-             'Ruta_SAK':np.int16, 'Cliente_ID':np.int32, 'Producto_ID':np.int32,
-             'Demanda_uni_equil':np.int8}
-    return pd.read_csv(filepath, usecols=types.keys(), dtype=types)
 
-def extract_span(weeks,ix_pred,span,pivot=3):
+def load_test(filepath):
+    types = {'id':np.int32,'Semana':np.int8, 'Agencia_ID':np.int16,
+             'Ruta_SAK':np.int16, 'Cliente_ID':np.int32, 'Producto_ID':np.int32 }
+    return pd.read_csv("./data/test.csv", usecols=types.keys(), dtype=types)
+
+def extract_span(weeks,ix_pred,span):
     verbose("Processing week:",ix_pred)
     first=True
     idx_data={}
-    f_=np.zeros([weeks[ix_pred-pivot].shape[0],span-1+5])
-    l_=np.zeros(weeks[ix_pred-pivot].shape[0])
+    f_=np.zeros([weeks[ix_pred-3].shape[0],span-1+5])
+    l_=np.zeros(weeks[ix_pred-3].shape[0])
     verbose("Creating matrix for week",f_.shape)
-    semana=ix_pred-pivot
+    semana=ix_pred-3
     for val,row in enumerate(weeks[semana].itertuples()):
         idx_data[row[2:6]]=val
         l_[val]=row[6]
@@ -49,8 +53,8 @@ def extract_span(weeks,ix_pred,span,pivot=3):
         f_[val,span+2]=row[10]
         f_[val,span+3]=row[11]
     for i in range(span)[1:span]:
-        semana=ix_pred-i-pivot
-        verbose("Adding info week",semana+pivot)
+        semana=ix_pred-i-3
+        verbose("Adding info week",semana+3)
         for row in weeks[semana].itertuples():
             try:
                 val=idx_data[row[2:6]]
@@ -58,20 +62,46 @@ def extract_span(weeks,ix_pred,span,pivot=3):
             except:
                 pass
     return f_,l_
+def extract_span2(weeks,ix_pred,span):
+    verbose("Processing week:",ix_pred)
+    first=True
+    idx_data={}
+    f_=np.zeros([weeks[ix_pred-3].shape[0],span-1+5])
+    verbose("Creating matrix for week",f_.shape)
+    semana=ix_pred-3
+    for val,row in enumerate(weeks[semana].itertuples()):
+        idx_data[row[2:6]]=val
+        f_[val,span-1]=row[7]
+        f_[val,span]=row[8]
+        f_[val,span+1]=row[9]
+        f_[val,span+2]=row[10]
+        f_[val,span+3]=row[11]
+    for i in range(span)[1:span]:
+        semana=ix_pred-i-3
+        verbose("Adding info week",semana+3)
+        for row in weeks[semana].itertuples():
+            try:
+                val=idx_data[row[2:6]]
+                f_[val,span-i-1]=row[6]
+            except:
+                pass
+    return f_
 
-def prepare_train_data(data,span=3,size=100000):
+def prepare_train_data(data,test,size=100000):
     verbose('Isolating weeks')
     weeks=[]
-    for i in range(3,9):
+    for i in range(3,10):
         if size:
             weeks.append(data[data.Semana==i].head(size))
         else:
             weeks.append(data[data.Semana==i])
 
-    test=data[data.Semana==9]
-    print (test.head())
     data=pd.concat(weeks)
+    #print (data.tail(50))
+
+
     summary={}
+    """
     data['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     test['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     verbose("Calculated meanP")
@@ -87,63 +117,124 @@ def prepare_train_data(data,span=3,size=100000):
     data['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
     test['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
     verbose("Calculated meanPC")
+    """
+    data['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanP")
+    data['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanC")
+    data['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanPA")
+    data['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated meanPR")
+    data['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
+    verbose("Calculated meanPC")
+    #print (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Data reindex")
+    #print (data.head())
+    test_ = data.loc[:, ['Producto_ID', 'meanP']].drop_duplicates(subset=['Producto_ID'])
+    test = test.merge(test_,how='left',on=['Producto_ID'],copy=False)
+    test_ = data.loc[:, ['Cliente_ID', 'meanC']].drop_duplicates(subset=['Cliente_ID'])
+    test = test.merge(test_,how='left',on=['Cliente_ID'],copy=False)
+    test_ = data.loc[:, ['Producto_ID','Agencia_ID','meanPA']].drop_duplicates(subset=['Producto_ID','Agencia_ID'])
+    test = test.merge(test_,how='left',on=['Producto_ID','Agencia_ID'],copy=False)
+    test_ = data.loc[:, ['Producto_ID','Ruta_SAK','meanPR']].drop_duplicates(subset=['Producto_ID','Ruta_SAK'])
+    test = test.merge(test_,how='left',on=['Producto_ID','Ruta_SAK'],copy=False)
+    test_ = data.loc[:, ['Producto_ID','Cliente_ID','meanPC']].drop_duplicates(subset=['Producto_ID','Cliente_ID'])
+    test = test.merge(test_,how='left',on=['Producto_ID','Cliente_ID'],copy=False)
+    del test_
+    test.fillna(0, inplace=True)
+    print ("Test shape: ")
+    print (test.shape)
+    print ("Valores con 0 en Cliente:")
+    print (test["meanC"].value_counts(dropna=False)[0])
+    print ("Valores con 0 en Producto:")
+    print (test["meanP"].value_counts(dropna=False)[0])
+    print ("Valores con 0 en Producto Agencia:")
+    print (test["meanPA"].value_counts(dropna=False)[0])
+    print ("Valores con 0 en Producto Cliente:")
+    print (test["meanPC"].value_counts(dropna=False)[0])
+    
+
     test.fillna(0, inplace=True)
     data=pd.concat([data,test])
-    print (data.tail())
-    
+    #print (data.tail())
+
 
     verbose(data.info(memory_usage=True))
 
     verbose('Isolating weeks (again)')
+    ids=data[data.tst==1]["id"].values
+    data.drop(["tst","id"],inplace=True,axis=1)
+    #print ("Data before order")
+    data=data[["Semana",'Agencia_ID','Cliente_ID','Producto_ID','Ruta_SAK','Demanda_uni_equil','meanP','meanC','meanPA',"meanPR",'meanPC']]
+    #print (data.head(50))
     weeks=[]
-    weeks_test=[]
-    for i in range(3,9):
+    for i in range(3,12):
         weeks.append(data[data.Semana==i])
-    for i in range(7,10):
-        weeks_test.append(data[data.Semana==i])
-
+    #test_size=weeks[-3].shape[0]
+    data=pd.concat(weeks)
+    #print (data.tail(50))
     del data
+    #print (">>>>>>>>>>>>>>>IDS")
+    #print (ids)
+    #print (">>>>>>>>>>>>>>>Order")
+    #print (weeks[0].head(50))
 
-    verbose('Extracting span train')
+    return weeks,ids
+def predweeks(weeks,regressor,span=3):
+    features=extract_span2(weeks[:-1],5,span)
+    predictions10=predict(features,regressor)
+    print (predictions10)
+    weeks[-2]["Demanda_uni_equil"]=predictions10
+    features=extract_span2(weeks[1:],5,span)
+    predictions20=predict(features,regressor)
+    print (predictions20)
+    return np.concatenate((predictions10, predictions20))
+
+def writesubmision(ids,predictions,path="./data/submission.csv"):
+    submision=pd.DataFrame({"Demanda_uni_equil":predictions,"id":ids.astype("int32")})
+    submision.to_csv(path,index=False)
+
+def getraindata(weeks,span=3):
+    verbose('Extracting span')
     feats=[]
     labels=[]
-    for i in range(3+span-1,9):
+    for i in range(3+span-1,10):
         feats_,labels_=extract_span(weeks,i,span)
         feats.append(feats_)
         labels.append(labels_)
 
-    verbose('Extracting span test1')
-    feats_test=[]
-    labels_test=[]
-    for i in range(7+span-1,10):
-        feats_,labels_=extract_span(weeks_test,i,span,pivot=8)
-        feats_test.append(feats_)
-        labels_test.append(labels_)
-
-    return np.vstack(feats),np.hstack(labels),np.vstack(feats_test),np.hstack(labels_test)
-
-def train_test(features,labels,features_test,labels_test):
-    verbose ("Features size",features.shape)
-    verbose ("Labels size",labels.shape)
-    verbose ("Features size test",features_test.shape)
-    verbose ("Labels size test",labels_test.shape)
+    return np.vstack(feats),np.hstack(labels)
+def train(features,labels):
     regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
     verbose ("Training...")
     regressor.fit(features, labels)
+    return regressor
+def predict(features,regressor):
+    preds=regressor.predict(features)
+    preds[preds<0]=0
+    return preds
+
+def train_test(features,labels,test_size):
+    verbose ("Features size",features.shape)
+    verbose ("Labels size",labels.shape)
+    verbose ("Size test",test_size)
+    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
+    verbose ("Training...")
+    regressor.fit(features[:-test_size], labels[:-test_size])
     verbose ("Predict...")
-    preds=regressor.predict(features_test)
+    preds=regressor.predict(features[-test_size:])
     preds[preds<0]=0
     verbose(preds)
     verbose(len(preds))
     verbose("MSE: ")
-    score = metrics.mean_squared_error(preds, labels_test)
+    score = metrics.mean_squared_error(preds, labels[-test_size:])
     verbose("Original",score)
-    score = metrics.mean_squared_error(np.round(preds), labels_test)
+    score = metrics.mean_squared_error(np.round(preds), labels[-test_size:])
     verbose("round",score)
     verbose ("RMSLE:")
-    score = rmsle(preds, labels_test)
+    score = rmsle(preds, labels[-test_size:])
     verbose ("Original",score)
-    score = rmsle(np.round(preds), labels_test)
+    score = rmsle(np.round(preds), labels[-test_size:])
     verbose ("round",score)
 
 if __name__ == '__main__':
@@ -176,13 +267,19 @@ if __name__ == '__main__':
 
     verbose("Loading training data...")
     df_train=load_train(opts.train)
-    """verbose("Loading test data...")
-    df_test=load_train(opts.train)
-    df_test=temp(df_test,10)
-    print (df_test[0].head(10))
-    print (df_test[1].head(10))"""
-    verbose("All data readed...")
-    verbose(df_train.info(memory_usage=True))
-    feats,labels,test_feats,test_labels=prepare_train_data(df_train,size=opts.size)
-
-    train_test(feats,labels,test_feats,test_labels)
+    df_train["tst"]=0
+    verbose("Loading test data...")
+    df_test=load_test(opts.train)
+    df_test["tst"]=1
+    df_test=temp(df_test,False)
+    print (df_test.head(20))
+    weeks,ids=prepare_train_data(df_train,df_test,size=opts.size)
+    #features,labels=getraindata(weeks[:-2],span=3)
+    """print ("Test size >>>>>>>>>>>>")
+    print (test_size)
+    train_test(features,labels,test_size)"""
+    #regressor=train(features,labels)
+    #predictions=predweeks(weeks[-4:],regressor)
+    #print ("Pedicciones juntas: ")
+    #print (predictions)
+    #writesubmision(ids,predictions)
