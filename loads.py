@@ -152,7 +152,15 @@ def prepare_train_data(data,test,size=100000):
     print (test["meanPA"].value_counts(dropna=False)[0])
     print ("Valores con 0 en Producto Cliente:")
     print (test["meanPC"].value_counts(dropna=False)[0])
-    
+    print ("Valores Clientes Unicos:")
+    print (len(np.setdiff1d(test["Cliente_ID"].values,data["Cliente_ID"])))
+    print ("Valores Productos Unicos:")
+    print (len(np.setdiff1d(test["Producto_ID"].values,data["Producto_ID"])))
+    print ("Valores Ruta_SAK Unicos:")
+    print (len(np.setdiff1d(test["Ruta_SAK"].values,data["Ruta_SAK"])))
+    print ("Valores Agencia_ID Unicos:")
+    print (len(np.setdiff1d(test["Agencia_ID"].values,data["Agencia_ID"])))
+
 
     test.fillna(0, inplace=True)
     data=pd.concat([data,test])
