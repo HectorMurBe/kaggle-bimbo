@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow.contrib.learn as skflow
 import tensorflow as tf
 from sklearn import metrics,preprocessing
+
 def temp(data,size):
     weeks=[]
     for i in range(10,12):
@@ -36,56 +37,178 @@ def load_test(filepath):
              'Ruta_SAK':np.int16, 'Cliente_ID':np.int32, 'Producto_ID':np.int32 }
     return pd.read_csv("./data/test.csv", usecols=types.keys(), dtype=types)
 
-def extract_span(weeks,ix_pred,span):
-    verbose("Processing week:",ix_pred)
-    first=True
-    idx_data={}
-    f_=np.zeros([weeks[ix_pred-3].shape[0],span-1+5])
-    l_=np.zeros(weeks[ix_pred-3].shape[0])
-    verbose("Creating matrix for week",f_.shape)
-    semana=ix_pred-3
-    for val,row in enumerate(weeks[semana].itertuples()):
-        idx_data[row[2:6]]=val
-        l_[val]=row[6]
-        f_[val,span-1]=row[7]
-        f_[val,span]=row[8]
-        f_[val,span+1]=row[9]
-        f_[val,span+2]=row[10]
-        f_[val,span+3]=row[11]
-    for i in range(span)[1:span]:
-        semana=ix_pred-i-3
-        verbose("Adding info week",semana+3)
-        for row in weeks[semana].itertuples():
-            try:
-                val=idx_data[row[2:6]]
-                f_[val,span-i-1]=row[6]
-            except:
-                pass
-    return f_,l_
-def extract_span2(weeks,ix_pred,span):
-    verbose("Processing week:",ix_pred)
-    first=True
-    idx_data={}
-    f_=np.zeros([weeks[ix_pred-3].shape[0],span-1+5])
-    verbose("Creating matrix for week",f_.shape)
-    semana=ix_pred-3
-    for val,row in enumerate(weeks[semana].itertuples()):
-        idx_data[row[2:6]]=val
-        f_[val,span-1]=row[7]
-        f_[val,span]=row[8]
-        f_[val,span+1]=row[9]
-        f_[val,span+2]=row[10]
-        f_[val,span+3]=row[11]
-    for i in range(span)[1:span]:
-        semana=ix_pred-i-3
-        verbose("Adding info week",semana+3)
-        for row in weeks[semana].itertuples():
-            try:
-                val=idx_data[row[2:6]]
-                f_[val,span-i-1]=row[6]
-            except:
-                pass
-    return f_
+
+
+def preproc_weeks(weeks):
+    ordered_weeks=[]
+    for i in reversed(range(5,10)):
+        #Take the weeks you want to log
+        ant_ant=weeks[weeks.Semana==i-2]
+        ant=weeks[weeks.Semana==i-1]
+        act=weeks[weeks.Semana==i]
+        #ant=pd.concat([ant,ant_ant])
+        """summary={}
+
+        #summary['lg1_pc']   = ant.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg1_PC")
+        summary['lg1_p']   = ant.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        verbose("Calculated lg1_P")
+        summary['lg1_c']   = ant.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        verbose("Calculated lg1_C")
+        #summary['lg1_pa']   = ant.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg1_PA")
+        #summary['lg1_pr']   = ant.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg1_PR")
+        #summary['lg2_pc']   = ant.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg2_PC")
+        #summary['lg2_p']   = ant.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg2_P")
+        #summary['lg2_c']   = ant.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg2_C")
+        #summary['lg2_pa']   = ant.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg2_PA")
+        #summary['lg2_pr']   = ant.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        #verbose("Calculated lg2_PR")
+
+        #Second merge
+        act['lg1_c']=summary['lg1_c']
+        act['lg1_p']=summary['lg1_p']
+        #act['lg1_pc']=summary['lg1_pc']
+        #act['lg1_pa']=summary['lg1_pa']
+        #act['lg1_pr']=summary['lg1_pr']
+        #act['lg2_c']=summary['lg2_c']
+        #act['lg2_p']=summary['lg2_p']
+        #act['lg2_pc']=summary['lg2_pc']
+        #act['lg2_pa']=summary['lg2_pa']
+        #act['lg2_pr']=summary['lg2_pr']"""
+        #First LOG
+        aux=ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+        aux['lg1_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+        aux=ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+        aux['lg1_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+        aux=ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+        aux['lg1_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
+        #Second Log
+
+        aux=ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+        aux['lg2_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+        aux=ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+        aux['lg2_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+        aux=ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+        aux['lg2_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+        print (act.head())
+        ordered_weeks.append(act.fillna(0))
+    ordered_weeks.reverse()
+    data=pd.concat(ordered_weeks)
+    return data
+def preproc_weeks2(weeks,target):
+    weeks=pd.concat(weeks)
+    i=target
+        #Take the weeks you want to log
+    ant_ant=weeks[weeks.Semana==i-2]
+    ant=weeks[weeks.Semana==i-1]
+    act=weeks[weeks.Semana==i]
+        #ant=pd.concat([ant,ant_ant])
+    """summary={}
+
+    #summary['lg1_pc']   = ant.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg1_PC")
+    summary['lg1_p']   = ant.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated lg1_P")
+    summary['lg1_c']   = ant.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    verbose("Calculated lg1_C")
+    #summary['lg1_pa']   = ant.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg1_PA")
+    #summary['lg1_pr']   = ant.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg1_PR")
+    #summary['lg2_pc']   = ant_ant.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg2_PC")
+    #summary['lg2_p']   = ant_ant.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg2_P")
+    #summary['lg2_c']   = ant_ant.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg2_C")
+    #summary['lg2_pa']   = ant_ant.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg2_PA")
+    #summary['lg2_pr']   = ant_ant.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    #verbose("Calculated lg2_PR")
+
+        #Second merge
+    act['lg1_c']=summary['lg1_c']
+    act['lg1_p']=summary['lg1_p']
+    #act['lg1_pc']=summary['lg1_pc']
+    #act['lg1_pa']=summary['lg1_pa']
+    #act['lg1_pr']=summary['lg1_pr']
+    #act['lg2_c']=summary['lg2_c']
+    #act['lg2_p']=summary['lg2_p']
+    #act['lg2_pc']=summary['lg2_pc']
+    #act['lg2_pa']=summary['lg2_pa']
+    #act['lg2_pr']=summary['lg2_pr']"""
+    #First LOG
+    aux=ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+    aux['lg1_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+    aux=ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+    aux['lg1_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+    aux=ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+    aux['lg1_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
+    #Second Log
+
+    aux=ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+    aux['lg2_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+    aux=ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+    aux['lg2_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+    aux=ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+    aux['lg2_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+    print (act.head())
+    act.fillna(0, inplace=True)
+    act.drop(["Producto_ID","Ruta_SAK","Cliente_ID","Agencia_ID","Semana","Demanda_uni_equil"],inplace=True,axis=1)
+    print (act.head())
+    return act.as_matrix()
 
 def prepare_train_data(data,test,size=100000):
     verbose('Isolating weeks')
@@ -98,83 +221,37 @@ def prepare_train_data(data,test,size=100000):
 
     data=pd.concat(weeks)
     #print (data.tail(50))
-
-
     summary={}
-    """
-    data['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    test['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    summary['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     verbose("Calculated meanP")
-    data['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    test['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    summary['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
     verbose("Calculated meanC")
-    data['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    test['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    summary['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
     verbose("Calculated meanPA")
-    data['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    test['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    summary['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
     verbose("Calculated meanPR")
-    data['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
-    test['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
+    summary['meanPC'] =  data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
     verbose("Calculated meanPC")
-    """
-    data['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanP")
-    data['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanC")
-    data['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanPA")
-    data['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanPR")
-    data['meanPC'] = data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform('mean')
-    verbose("Calculated meanPC")
-    #print (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Data reindex")
-    #print (data.head())
-    test_ = data.loc[:, ['Producto_ID', 'meanP']].drop_duplicates(subset=['Producto_ID'])
-    test = test.merge(test_,how='left',on=['Producto_ID'],copy=False)
-    test_ = data.loc[:, ['Cliente_ID', 'meanC']].drop_duplicates(subset=['Cliente_ID'])
-    test = test.merge(test_,how='left',on=['Cliente_ID'],copy=False)
-    test_ = data.loc[:, ['Producto_ID','Agencia_ID','meanPA']].drop_duplicates(subset=['Producto_ID','Agencia_ID'])
-    test = test.merge(test_,how='left',on=['Producto_ID','Agencia_ID'],copy=False)
-    test_ = data.loc[:, ['Producto_ID','Ruta_SAK','meanPR']].drop_duplicates(subset=['Producto_ID','Ruta_SAK'])
-    test = test.merge(test_,how='left',on=['Producto_ID','Ruta_SAK'],copy=False)
-    test_ = data.loc[:, ['Producto_ID','Cliente_ID','meanPC']].drop_duplicates(subset=['Producto_ID','Cliente_ID'])
-    test = test.merge(test_,how='left',on=['Producto_ID','Cliente_ID'],copy=False)
-    del test_
-    test.fillna(0, inplace=True)
-    print ("Test shape: ")
-    print (test.shape)
-    print ("Valores con 0 en Cliente:")
-    print (test["meanC"].value_counts(dropna=False)[0])
-    print ("Valores con 0 en Producto:")
-    print (test["meanP"].value_counts(dropna=False)[0])
-    print ("Valores con 0 en Producto Agencia:")
-    print (test["meanPA"].value_counts(dropna=False)[0])
-    print ("Valores con 0 en Producto Cliente:")
-    print (test["meanPC"].value_counts(dropna=False)[0])
-    print ("Valores Clientes Unicos:")
-    print (len(np.setdiff1d(test["Cliente_ID"].values,data["Cliente_ID"])))
-    print ("Valores Productos Unicos:")
-    print (len(np.setdiff1d(test["Producto_ID"].values,data["Producto_ID"])))
-    print ("Valores Ruta_SAK Unicos:")
-    print (len(np.setdiff1d(test["Ruta_SAK"].values,data["Ruta_SAK"])))
-    print ("Valores Agencia_ID Unicos:")
-    print (len(np.setdiff1d(test["Agencia_ID"].values,data["Agencia_ID"])))
+    verbose('Isolating weeks (again)')
+    data['meanP']=summary['meanP']
+    data['meanC']=summary['meanC']
+    data['meanPA']=summary['meanPA']
+    data['meanPR']=summary['meanPR']
+    data['meanPC']=summary['meanPC']
+    test['meanP']=summary['meanP']
+    test['meanC']=summary['meanC']
+    test['meanPA']=summary['meanPA']
+    test['meanPR']=summary['meanPR']
+    test['meanPC']=summary['meanPC']
 
-
-    test.fillna(0, inplace=True)
+    for k,v in summary.iteritems():
+        del v
     data=pd.concat([data,test])
     #print (data.tail())
-
-
     verbose(data.info(memory_usage=True))
-
     verbose('Isolating weeks (again)')
     ids=data[data.tst==1]["id"].values
     data.drop(["tst","id"],inplace=True,axis=1)
-    #print ("Data before order")
-    data=data[["Semana",'Agencia_ID','Cliente_ID','Producto_ID','Ruta_SAK','Demanda_uni_equil','meanP','meanC','meanPA',"meanPR",'meanPC']]
-    #print (data.head(50))
     weeks=[]
     for i in range(3,12):
         weeks.append(data[data.Semana==i])
@@ -182,42 +259,49 @@ def prepare_train_data(data,test,size=100000):
     data=pd.concat(weeks)
     #print (data.tail(50))
     del data
-    #print (">>>>>>>>>>>>>>>IDS")
-    #print (ids)
-    #print (">>>>>>>>>>>>>>>Order")
-    #print (weeks[0].head(50))
 
     return weeks,ids
 def predweeks(weeks,regressor,span=3):
-    features=extract_span2(weeks[:-1],5,span)
+    features=preproc_weeks2(weeks,10)
+
     predictions10=predict(features,regressor)
     print (predictions10)
     weeks[-2]["Demanda_uni_equil"]=predictions10
-    features=extract_span2(weeks[1:],5,span)
+    features=preproc_weeks2(weeks,11)
     predictions20=predict(features,regressor)
     print (predictions20)
     return np.concatenate((predictions10, predictions20))
 
 def writesubmision(ids,predictions,path="./data/submission.csv"):
     submision=pd.DataFrame({"Demanda_uni_equil":predictions,"id":ids.astype("int32")})
+    submision=submision[['id','Demanda_uni_equil']]
     submision.to_csv(path,index=False)
 
 def getraindata(weeks,span=3):
+    weeks=pd.concat(weeks)
     verbose('Extracting span')
-    feats=[]
-    labels=[]
-    for i in range(3+span-1,10):
-        feats_,labels_=extract_span(weeks,i,span)
-        feats.append(feats_)
-        labels.append(labels_)
+    data=preproc_weeks(weeks)
+    print (data.head())
+    labels=data["Demanda_uni_equil"].values
+    data.drop(["Producto_ID","Ruta_SAK","Cliente_ID","Agencia_ID","Semana","Demanda_uni_equil"],inplace=True,axis=1)#Not usefull columns from here
 
-    return np.vstack(feats),np.hstack(labels)
+    return data.as_matrix(),labels
 def train(features,labels):
-    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
+    """T_train_xgb = xgb.DMatrix(features, labels)
     verbose ("Training...")
+    params = {"objective":"reg:linear",
+                               "booster" : "gbtree",
+                               "eta":0.1,
+                               "max_depth":10,
+                               "subsample":0.85,
+                               "colsample_bytree":0.7}
+    regressor = xgb.train(dtrain=T_train_xgb,params=params)"""
+    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
     regressor.fit(features, labels)
+
     return regressor
 def predict(features,regressor):
+    #preds=regressor.predict(xgb.DMatrix(features))
     preds=regressor.predict(features)
     preds[preds<0]=0
     return preds
@@ -226,10 +310,20 @@ def train_test(features,labels,test_size):
     verbose ("Features size",features.shape)
     verbose ("Labels size",labels.shape)
     verbose ("Size test",test_size)
-    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
+    #T_train_xgb = xgb.DMatrix(features, labels)
     verbose ("Training...")
+    #params = {"objective":"reg:linear",
+    #                               "booster" : "gbtree",
+    #                               "eta":0.1,
+    #                               "max_depth":10,
+    #                               "subsample":0.85,
+    #                               "colsample_bytree":0.7}
+    #regressor = xgb.train(dtrain=T_train_xgb,params=params)
+    verbose ("Training...")
+    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
     regressor.fit(features[:-test_size], labels[:-test_size])
     verbose ("Predict...")
+    #preds=regressor.predict(xgb.DMatrix(features[-test_size]))
     preds=regressor.predict(features[-test_size:])
     preds[preds<0]=0
     verbose(preds)
@@ -257,7 +351,7 @@ if __name__ == '__main__':
     p.add_argument("--test_size",default=1000,type=int,
             action="store", dest="test_size",
             help="Size of records per week [all]")
-    p.add_argument("--size",default=4000000,type=int,
+    p.add_argument("--size",default=None,type=int,
             action="store", dest="size",
             help="Size of records per week [all]")
     p.add_argument("--span",default=3,type=int,
@@ -282,12 +376,20 @@ if __name__ == '__main__':
     df_test=temp(df_test,False)
     print (df_test.head(20))
     weeks,ids=prepare_train_data(df_train,df_test,size=opts.size)
-    #features,labels=getraindata(weeks[:-2],span=3)
-    """print ("Test size >>>>>>>>>>>>")
+    for i in weeks[:-2]:
+        print (i.Semana.values)
+
+    features,labels=getraindata(weeks[:-2])
+
+    for i in weeks:
+            print ("SHAAAPE :>>>>>>>",i.shape)
+
+    print ("Test size >>>>>>>>>>>>")
+    test_size=weeks[-3].shape[0]
     print (test_size)
-    train_test(features,labels,test_size)"""
-    #regressor=train(features,labels)
-    #predictions=predweeks(weeks[-4:],regressor)
-    #print ("Pedicciones juntas: ")
-    #print (predictions)
-    #writesubmision(ids,predictions)
+    train_test(features,labels,test_size)
+    regressor=train(features,labels)
+    predictions=predweeks(weeks[-4:],regressor)
+    print ("Pedicciones juntas: ")
+    print (predictions)
+    writesubmision(ids,predictions)
