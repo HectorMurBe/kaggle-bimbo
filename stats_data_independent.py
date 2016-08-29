@@ -38,7 +38,7 @@ def load_test(filepath):
              'Ruta_SAK':np.int16, 'Cliente_ID':np.int32, 'Producto_ID':np.int32 }
     return pd.read_csv("./data/test.csv", usecols=types.keys(), dtype=types)
 
-def extract_span(weeks,ix_pred,span,ini=3):
+def extract_span(weeks,mw,ix_pred,span,ini=3):
     verbose("Processing week:",ix_pred)
     first=True
     idx_data={}
@@ -51,47 +51,112 @@ def extract_span(weeks,ix_pred,span,ini=3):
     for val,row in enumerate(weeks[semana].itertuples()):
         idx_data[row[2:6]]=val
         l_[val]=row[6]
-        f_[val,span-1]=row[7]
-        f_[val,span]=row[8]
-        f_[val,span+1]=row[9]
-        f_[val,span+2]=row[10]
-        f_[val,span+3]=row[11]
+        f_[val,-1]=row[7]
+        f_[val,-2]=row[8]
+        f_[val,-3]=row[9]
+        f_[val,-4]=row[10]
+        f_[val,-5]=row[11]
+    counts_invalid=0
     for i in range(span)[1:span]:
         semana=ix_pred-i-ini
+        mP=mw['meanP']
+        mC=mw['meanC']
+        mPC=mw['meanPC']
+        mPR=mw['meanPR']
+        mPA=mw['meanPA']
         verbose("Adding info week",semana+ini)
         for row in weeks[semana].itertuples():
             try:
-                val=idx_data[row[2:6]]
-                f_[val,span-i-1]=row[6]
+                mP_=mP[mP['Semana']==semana and mP['Producto_ID']==row[4]].iloc[1]
             except:
-                pass
+                mP_=0.0
+            try:
+                mC_=mC[mC['Semana']==semana and mC['Cliente_ID']==row[3]].iloc[1]
+            except:
+                mC_=0.0
+            try:
+                mPC_=mPC[mPC['Semana']==semana and mPC['Producto_ID']==row[4] and mPC['Cliente_ID']==row[3]].iloc[1]
+            except:
+                mPC_=0.0
+            try:
+                mPA_=mPA[mPA['Semana']==semana and mPA['Producto_ID']==row[4] and mPA['Agencia_ID']==row[2]].iloc[1]
+            except:
+                mPA_=0.0
+            try:
+                mPR_=mPR[mPR['Semana']==semana and mPR['Producto_ID']==row[4] and mPR['Ruta_SAK']==row[5]].iloc[1]
+            except:
+                mPR_=0.0
+            try:
+                val=idx_data[row[2:6]]
+                f_[val,(span-i-1)*6]=row[6]
+                f_[val,(span-i-1)*6+1]=mP
+                f_[val,(span-i-1)*6+2]=mC
+                f_[val,(span-i-1)*6+3]=mPC
+                f_[val,(span-i-1)*6+4]=mPA
+                f_[val,(span-i-1)*6+5]=mRA
+            except:
+                counts_invalid+=1
+    verbose('Invalid counts',counts_invalid)
     return f_,l_
 
-def extract_span2(weeks,ix_pred,span=3,ini=3):
+def extract_span2(weeks,mw,ix_pred,span=3,ini=3):
     verbose("Processing week:",ix_pred)
     first=True
     idx_data={}
-    f_=np.zeros([weeks[ix_pred-ini].shape[0],span-1+5])
+    f_=np.zeros([weeks[ix_pred-ini].shape[0],(span-1)*6+5])
     verbose("Creating matrix for week",f_.shape)
     semana=ix_pred-ini
     ids=[]
     for val,row in enumerate(weeks[semana].itertuples()):
         idx_data[row[2:6]]=val
-        f_[val,span-1]=row[7]
-        f_[val,span]=row[8]
-        f_[val,span+1]=row[9]
-        f_[val,span+2]=row[10]
-        f_[val,span+3]=row[11]
-        ids.append(row[12])
+        f_[val,-1]=row[7]
+        f_[val,-2]=row[8]
+        f_[val,-3]=row[9]
+        f_[val,-4]=row[10]
+        f_[val,-5]=row[11]
+        ids.append(row[-1])
+    counts_invalid=0
+
     for i in range(span)[1:span]:
         semana=ix_pred-i-ini
+        mP=mw['meanP']
+        mC=mw['meanC']
+        mPC=mw['meanPC']
+        mPR=mw['meanPR']
+        mPA=mw['meanPA']
         verbose("Adding info week",semana+ini)
         for row in weeks[semana].itertuples():
             try:
-                val=idx_data[row[2:6]]
-                f_[val,span-i-1]=row[6]
+                mP_=mP[mP['Semana']==semana and mP['Producto_ID']==row[4]].iloc[1]
             except:
-                pass
+                mP_=0.0
+            try:
+                mC_=mC[mC['Semana']==semana and mC['Cliente_ID']==row[3]].iloc[1]
+            except:
+                mC_=0.0
+            try:
+                mPC_=mPC[mPC['Semana']==semana and mPC['Producto_ID']==row[4] and mPC['Cliente_ID']==row[3]].iloc[1]
+            except:
+                mPC_=0.0
+            try:
+                mPA_=mPA[mPA['Semana']==semana and mPA['Producto_ID']==row[4] and mPA['Agencia_ID']==row[2]].iloc[1]
+            except:
+                mPA_=0.0
+            try:
+                mPR_=mPR[mPR['Semana']==semana and mPR['Producto_ID']==row[4] and mPR['Ruta_SAK']==row[5]].iloc[1]
+            except:
+                mPR_=0.0
+            try:
+                val=idx_data[row[2:6]]
+                f_[val,(span-i-1)*6]=row[6]
+                f_[val,(span-i-1)*6+1]=mP
+                f_[val,(span-i-1)*6+2]=mC
+                f_[val,(span-i-1)*6+3]=mPC
+                f_[val,(span-i-1)*6+4]=mPA
+                f_[val,(span-i-1)*6+5]=mRA
+            except:
+                counts_invalid+=1
+    verbose('Invalid counts',counts_invalid)
     return f_,ids
 
 def prepare_train_data(data,test,size=100000,ini=3):
@@ -120,15 +185,25 @@ def prepare_train_data(data,test,size=100000,ini=3):
     verbose("Calculated meanPC")
     """
     summary={}
+    mean_weeks={}
     summary['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    mean_weeks['meanP']   = data.groupby(['Semana','Producto_ID'])['Demanda_uni_equil'].agg([np.mean])
     verbose("Calculated meanP")
     summary['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    mean_weeks['meanC']   = data.groupby(['Semana','Cliente_ID'])['Demanda_uni_equil'].agg([np.mean])
+
     verbose("Calculated meanC")
     summary['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    mean_weeks['meanPA']  = data.groupby(['Semana','Producto_ID','Agencia_ID'])['Demanda_uni_equil'].agg([np.mean])
+
     verbose("Calculated meanPA")
     summary['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    mean_weeks['meanPR']  = data.groupby(['Semana','Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].agg([np.mean])
+
     verbose("Calculated meanPR")
     summary['meanPC'] =  data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    mean_weeks['meanPC'] =  data.groupby(['Semana','Producto_ID','Cliente_ID'])['Demanda_uni_equil'].agg([np.mean])
+
     verbose("Calculated meanPC")
     verbose('Isolating weeks (again)')
     weeks=[]
@@ -154,44 +229,43 @@ def prepare_train_data(data,test,size=100000,ini=3):
     for k,v in summary.iteritems():
         del v
 
-    '''test_ = data.loc[:, ['Producto_ID', 'meanP']].drop_duplicates(subset=['Producto_ID'])
-    test = test.merge(test_,how='left',on=['Producto_ID'],copy=False)
-    test_ = data.loc[:, ['Cliente_ID', 'meanC']].drop_duplicates(subset=['Cliente_ID'])
-    test = test.merge(test_,how='left',on=['Cliente_ID'],copy=False)
-    test_ = data.loc[:, ['Producto_ID','Agencia_ID','meanPA']].drop_duplicates(subset=['Producto_ID','Agencia_ID'])
-    test = test.merge(test_,how='left',on=['Producto_ID','Agencia_ID'],copy=False)
-    test_ = data.loc[:, ['Producto_ID','Ruta_SAK','meanPR']].drop_duplicates(subset=['Producto_ID','Ruta_SAK'])
-    test = test.merge(test_,how='left',on=['Producto_ID','Ruta_SAK'],copy=False)
-    test_ = data.loc[:, ['Producto_ID','Cliente_ID','meanPC']].drop_duplicates(subset=['Producto_ID','Cliente_ID'])
-    test = test.merge(test_,how='left',on=['Producto_ID','Cliente_ID'],copy=False)
-    del test_'''
+    #   '''test_ = data.loc[:, ['Producto_ID', 'meanP']].drop_duplicates(subset=['Producto_ID'])
+    #  test = test.merge(test_,how='left',on=['Producto_ID'],copy=False)
+    #  test_ = data.loc[:, ['Cliente_ID', 'meanC']].drop_duplicates(subset=['Cliente_ID'])
+    #  test = test.merge(test_,how='left',on=['Cliente_ID'],copy=False)
+    #  test_ = data.loc[:, ['Producto_ID','Agencia_ID','meanPA']].drop_duplicates(subset=['Producto_ID','Agencia_ID'])
+    #  test = test.merge(test_,how='left',on=['Producto_ID','Agencia_ID'],copy=False)
+    #  test_ = data.loc[:, ['Producto_ID','Ruta_SAK','meanPR']].drop_duplicates(subset=['Producto_ID','Ruta_SAK'])
+    #  test = test.merge(test_,how='left',on=['Producto_ID','Ruta_SAK'],copy=False)
+    #  test_ = data.loc[:, ['Producto_ID','Cliente_ID','meanPC']].drop_duplicates(subset=['Producto_ID','Cliente_ID'])
+    #  test = test.merge(test_,how='left',on=['Producto_ID','Cliente_ID'],copy=False)
+    #  del test_'''
 
-    verbose("Calculated meanPC")
-    test.fillna(0, inplace=True)
-    print ("Test shape: ")
-    print (test.shape)
-    print ("Valores con 0 en Cliente:")
-    print (test[test.meanC == 0.0].count(axis=1).shape)
-    print (test["meanC"].value_counts(dropna=False)[0])
-    print ("Valores con 0 en Producto:")
-    print (test[test.meanP == 0.0].count(axis=1).shape)
-    print (test["meanP"].value_counts(dropna=False)[0])
-    print ("Valores con 0 en Producto Agencia:")
-    print (test[test.meanPA == 0.0].count(axis=1).shape)
-    print (test["meanPA"].value_counts(dropna=False)[0])
-    print ("Valores con 0 en Producto Cliente:")
-    print (test[test.meanPC == 0.0].count(axis=1).shape)
-    print (test["meanPC"].value_counts(dropna=False)[0])
-    print ("Valores Clientes Unicos:")
-    print (len(np.setdiff1d(test["Cliente_ID"].values,data["Cliente_ID"])))
-    print ("Valores Productos Unicos:")
-    print (len(np.setdiff1d(test["Producto_ID"].values,data["Producto_ID"])))
-    print ("Valores Ruta_SAK Unicos:")
-    print (len(np.setdiff1d(test["Ruta_SAK"].values,data["Ruta_SAK"])))
-    print ("Valores Agencia_ID Unicos:")
-    print (len(np.setdiff1d(test["Agencia_ID"].values,data["Agencia_ID"])))
-
-
+    #  verbose("Calculated meanPC")
+    #  test.fillna(0, inplace=True)
+    #  print ("Test shape: ")
+    #  print (test.shape)
+    #  print ("Valores con 0 en Cliente:")
+    #  print (test[test.meanC == 0.0].count(axis=1).shape)
+    #  print (test["meanC"].value_counts(dropna=False)[0])
+    #  print ("Valores con 0 en Producto:")
+    #  print (test[test.meanP == 0.0].count(axis=1).shape)
+    #  print (test["meanP"].value_counts(dropna=False)[0])
+    #  print ("Valores con 0 en Producto Agencia:")
+    #  print (test[test.meanPA == 0.0].count(axis=1).shape)
+    #  print (test["meanPA"].value_counts(dropna=False)[0])
+    #  print ("Valores con 0 en Producto Cliente:")
+    #  print (test[test.meanPC == 0.0].count(axis=1).shape)
+    #  print (test["meanPC"].value_counts(dropna=False)[0])
+    #  print ("Valores Clientes Unicos:")
+    #  print (len(np.setdiff1d(test["Cliente_ID"].values,data["Cliente_ID"])))
+    #  print ("Valores Productos Unicos:")
+    #  print (len(np.setdiff1d(test["Producto_ID"].values,data["Producto_ID"])))
+    #  print ("Valores Ruta_SAK Unicos:")
+    #  print (len(np.setdiff1d(test["Ruta_SAK"].values,data["Ruta_SAK"])))
+    #  print ("Valores Agencia_ID Unicos:")
+    #  print (len(np.setdiff1d(test["Agencia_ID"].values,data["Agencia_ID"])))
+    
     data=pd.concat([data,test])
 
     ids=[]
@@ -203,7 +277,7 @@ def prepare_train_data(data,test,size=100000,ini=3):
     weeks=[]
     for i in range(3,12):
         weeks.append(data[data.Semana==i])
-    return weeks,ids
+    return weeks,mean_weeks,ids
 
 def predweeks(weeks,regressor,span=3):
     features=extract_span2(weeks[:-1],5,span)
@@ -216,15 +290,15 @@ def predweeks(weeks,regressor,span=3):
 
 def writesubmision(ids,predictions,path="./data/submission.csv"):
     submision=pd.DataFrame({"id":ids.astype("int32"),"Demanda_uni_equil":predictions})
-    submision=submision['id','Demanda_uni_equil']
+    submision=submision[['id','Demanda_uni_equil']]
     submision.to_csv(path,index=False)
 
-def getraindata(weeks,span=3,ini=3):
+def getraindata(weeks,mw,span=3,ini=3):
     verbose('Extracting span')
     feats=[]
     labels=[]
     for i in range(ini+span-1,len(weeks)+ini):
-        feats_,labels_=extract_span(weeks,i,span)
+        feats_,labels_=extract_span(weeks,mw,i,span)
         feats.append(feats_)
         labels.append(labels_)
     return np.vstack(feats),np.hstack(labels)
@@ -232,8 +306,8 @@ def getraindata(weeks,span=3,ini=3):
 def train(features,labels):
     verbose ("Features size",features.shape)
     verbose ("Labels size",labels.shape)
-    #regressor = skflow.TensorFlowLinearRegressor(steps=2000,learning_rate=0.1)#TODO convert uint32 to TensorFlow DType
-    regressor = RandomForestRegressor(n_estimators=20)
+    regressor = skflow.TensorFlowLinearRegressor(steps=6000)#TODO convert uint32 to TensorFlow DType
+    #regressor = RandomForestRegressor(n_estimators=20)
     verbose ("Training...")
     regressor.fit(features, labels)
     return regressor
@@ -295,21 +369,21 @@ if __name__ == '__main__':
     df_test=load_test(opts.train)
     df_test["tst"]=1
     df_test=temp(df_test,False)
-    weeks,ids=prepare_train_data(df_train,df_test,size=opts.size)
+    weeks,mw,ids=prepare_train_data(df_train,df_test,size=opts.size)
     if opts.dev:
-        features,labels=getraindata(weeks[:-3],span=opts.span)
+        features,labels=getraindata(weeks[:-3],mw,span=opts.span)
         regressor=train(features,labels)
-        feats,labels=extract_span(weeks,9,span=opts.span)
+        feats,labels=extract_span(weeks,mw,9,span=opts.span)
         predictions=predict(feats,regressor)
         eval_test(predictions,labels)
     else:
-        features,labels=getraindata(weeks[:-2],span=opts.span)
+        features,labels=getraindata(weeks[:-2],mw,span=opts.span)
         regressor=train(features,labels)
-        feats,ids1=extract_span2(weeks,10,span=opts.span)
+        feats,ids1=extract_span2(weeks,mw,10,span=opts.span)
         predictions10=predict(feats,regressor)
         verbose (predictions10)
         weeks[-2]["Demanda_uni_equil"]=predictions10
-        feats,ids2=extract_span2(weeks,11,span=opts.span)
+        feats,ids2=extract_span2(weeks,mw,11,span=opts.span)
         predictions11=predict(feats,regressor)
         verbose (predictions11)
         predictions=np.concatenate((predictions10, predictions11))

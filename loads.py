@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow.contrib.learn as skflow
 import tensorflow as tf
 from sklearn import metrics,preprocessing
+import xgboost as xgb
 
 def temp(data,size):
     weeks=[]
@@ -84,40 +85,46 @@ def preproc_weeks(weeks):
         #First LOG
         aux=ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
         aux['lg1_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
         aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
-        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
         act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
 
         aux=ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
         aux['lg1_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
         aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
-        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
         act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
 
         aux=ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
         aux['lg1_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
         aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
-        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
         act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
 
         #Second Log
 
         aux=ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
         aux['lg2_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
         aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
-        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
         act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
 
         aux=ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
         aux['lg2_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
         aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
-        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
         act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
 
         aux=ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
         aux['lg2_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
         aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
-        aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
         act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
         print (act.head())
         ordered_weeks.append(act.fillna(0))
@@ -169,44 +176,50 @@ def preproc_weeks2(weeks,target):
     #First LOG
     aux=ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
     aux['lg1_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
     aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
-    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
     act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
 
     aux=ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
     aux['lg1_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
     aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
-    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
     act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
 
     aux=ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
     aux['lg1_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
     aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
-    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
     act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
 
     #Second Log
 
     aux=ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
     aux['lg2_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
     aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
-    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
     act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
 
     aux=ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
     aux['lg2_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
     aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
-    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
     act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
 
     aux=ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
     aux['lg2_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
     aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
-    aux.drop(["Demanda_uni_equil"],inplace=True,axis=1)
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
     act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
     print (act.head())
     act.fillna(0, inplace=True)
-    act.drop(["Producto_ID","Ruta_SAK","Cliente_ID","Agencia_ID","Semana","Demanda_uni_equil"],inplace=True,axis=1)
+    act.drop(["Semana","Demanda_uni_equil"],inplace=True,axis=1)
     print (act.head())
     return act.as_matrix()
 
@@ -220,6 +233,8 @@ def prepare_train_data(data,test,size=100000):
             weeks.append(data[data.Semana==i])
 
     data=pd.concat(weeks)
+    data['Demanda_uni_equil'] = np.log(data['Demanda_uni_equil'] + 1)
+    test['Demanda_uni_equil'] = np.log(test['Demanda_uni_equil'] + 1)
     #print (data.tail(50))
     summary={}
     summary['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
@@ -238,11 +253,36 @@ def prepare_train_data(data,test,size=100000):
     data['meanPA']=summary['meanPA']
     data['meanPR']=summary['meanPR']
     data['meanPC']=summary['meanPC']
-    test['meanP']=summary['meanP']
-    test['meanC']=summary['meanC']
-    test['meanPA']=summary['meanPA']
-    test['meanPR']=summary['meanPR']
-    test['meanPC']=summary['meanPC']
+
+    aux=data[['Producto_ID','meanP']]
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+    aux.drop(['index'],inplace=True,axis=1)
+    test=pd.merge(test,aux,how='left',on=['Producto_ID'],copy=False)
+
+    aux=data[['Cliente_ID','meanC']]
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+    aux.drop(['index'],inplace=True,axis=1)
+    test=pd.merge(test,aux,how='left',on=['Cliente_ID'],copy=False)
+
+    aux=data[['Producto_ID','Agencia_ID','meanPA']]
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Producto_ID','Agencia_ID'],keep="first")
+    aux.drop(['index'],inplace=True,axis=1)
+    test=pd.merge(test,aux,how='left',on=['Producto_ID','Agencia_ID'],copy=False)
+
+    aux=data[['Producto_ID','Ruta_SAK','meanPR']]
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Producto_ID','Ruta_SAK'],keep="first")
+    aux.drop(['index'],inplace=True,axis=1)
+    test=pd.merge(test,aux,how='left',on=['Producto_ID','Ruta_SAK'],copy=False)
+
+    aux=data[['Producto_ID','Cliente_ID','meanPC']]
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Producto_ID','Cliente_ID'],keep="first")
+    aux.drop(['index'],inplace=True,axis=1)
+    test=pd.merge(test,aux,how='left',on=['Producto_ID','Cliente_ID'],copy=False)
 
     for k,v in summary.iteritems():
         del v
@@ -283,11 +323,11 @@ def getraindata(weeks,span=3):
     data=preproc_weeks(weeks)
     print (data.head())
     labels=data["Demanda_uni_equil"].values
-    data.drop(["Producto_ID","Ruta_SAK","Cliente_ID","Agencia_ID","Semana","Demanda_uni_equil"],inplace=True,axis=1)#Not usefull columns from here
+    data.drop(["Semana","Demanda_uni_equil"],inplace=True,axis=1)#Not usefull columns from here
 
     return data.as_matrix(),labels
 def train(features,labels):
-    """T_train_xgb = xgb.DMatrix(features, labels)
+    T_train_xgb = xgb.DMatrix(features, labels)
     verbose ("Training...")
     params = {"objective":"reg:linear",
                                "booster" : "gbtree",
@@ -295,14 +335,15 @@ def train(features,labels):
                                "max_depth":10,
                                "subsample":0.85,
                                "colsample_bytree":0.7}
-    regressor = xgb.train(dtrain=T_train_xgb,params=params)"""
-    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
-    regressor.fit(features, labels)
+    regressor = xgb.train(dtrain=T_train_xgb,params=params)
+    #regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
+    #regressor.fit(features, labels)
 
     return regressor
 def predict(features,regressor):
-    #preds=regressor.predict(xgb.DMatrix(features))
-    preds=regressor.predict(features)
+    preds=regressor.predict(xgb.DMatrix(features))
+    preds=np.exp(preds)-1
+    #preds=regressor.predict(features)
     preds[preds<0]=0
     return preds
 
@@ -310,25 +351,27 @@ def train_test(features,labels,test_size):
     verbose ("Features size",features.shape)
     verbose ("Labels size",labels.shape)
     verbose ("Size test",test_size)
-    #T_train_xgb = xgb.DMatrix(features, labels)
+    T_train_xgb = xgb.DMatrix(features, labels)
     verbose ("Training...")
-    #params = {"objective":"reg:linear",
-    #                               "booster" : "gbtree",
-    #                               "eta":0.1,
-    #                               "max_depth":10,
-    #                               "subsample":0.85,
-    #                               "colsample_bytree":0.7}
-    #regressor = xgb.train(dtrain=T_train_xgb,params=params)
+    params = {"objective":"reg:linear",
+                                   "booster" : "gbtree",
+                                   "eta":0.1,
+                                   "max_depth":10,
+                                   "subsample":0.85,
+                                   "colsample_bytree":0.7}
+    regressor = xgb.train(dtrain=T_train_xgb,params=params)
     verbose ("Training...")
-    regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
-    regressor.fit(features[:-test_size], labels[:-test_size])
+    #regressor = skflow.TensorFlowLinearRegressor()#TODO convert uint32 to TensorFlow DType
+    #regressor.fit(features[:-test_size], labels[:-test_size])
     verbose ("Predict...")
-    #preds=regressor.predict(xgb.DMatrix(features[-test_size]))
-    preds=regressor.predict(features[-test_size:])
+    preds=regressor.predict(xgb.DMatrix(features[-test_size:]))
+    #preds=regressor.predict(features[-test_size:])
     preds[preds<0]=0
     verbose(preds)
+    preds=np.exp(preds)-1
     verbose(len(preds))
     verbose("MSE: ")
+    labels=np.exp(labels)-1
     score = metrics.mean_squared_error(preds, labels[-test_size:])
     verbose("Original",score)
     score = metrics.mean_squared_error(np.round(preds), labels[-test_size:])
