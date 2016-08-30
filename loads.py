@@ -43,8 +43,10 @@ def load_test(filepath):
 
 def preproc_weeks(weeks):
     ordered_weeks=[]
-    for i in reversed(range(5,10)):
+    for i in reversed(range(7,10)):
         #Take the weeks you want to log
+        ant_ant_ant_ant=weeks[weeks.Semana==i-4]
+        ant_ant_ant=weeks[weeks.Semana==i-3]
         ant_ant=weeks[weeks.Semana==i-2]
         ant=weeks[weeks.Semana==i-1]
         act=weeks[weeks.Semana==i]
@@ -125,15 +127,64 @@ def preproc_weeks(weeks):
         aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
         aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
         act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
+        #third Log
+        aux=ant_ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+        aux['lg3_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
+        aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+        aux=ant_ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+        aux['lg3_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
+        aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+        aux=ant_ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+        aux['lg3_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
+        aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
+        #Fourth Log
+        aux=ant_ant_ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+        aux['lg4_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
+        aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+        aux=ant_ant_ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+        aux['lg4_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
+        aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+        aux=ant_ant_ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+        aux['lg4_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+        aux = aux.reset_index()
+        aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+        aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+        act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
+
         print (act.head())
         ordered_weeks.append(act.fillna(0))
     ordered_weeks.reverse()
     data=pd.concat(ordered_weeks)
+    data.drop(['Cliente_ID','Producto_ID','Ruta_SAK','Agencia_ID'],inplace=True,axis=1)
     return data
 def preproc_weeks2(weeks,target):
     weeks=pd.concat(weeks)
     i=target
         #Take the weeks you want to log
+    ant_ant_ant_ant=weeks[weeks.Semana==i-4]
+    ant_ant_ant=weeks[weeks.Semana==i-3]
     ant_ant=weeks[weeks.Semana==i-2]
     ant=weeks[weeks.Semana==i-1]
     act=weeks[weeks.Semana==i]
@@ -214,9 +265,54 @@ def preproc_weeks2(weeks,target):
     aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
     aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
     act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
+    #Thrid Log
+    aux=ant_ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+    aux['lg3_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+    aux=ant_ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+    aux['lg3_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+    aux=ant_ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+    aux['lg3_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
+    #Fourth Log
+    aux=ant_ant_ant_ant.loc[:, ['Producto_ID', 'Demanda_uni_equil']]
+    aux['lg4_p']   = aux.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Producto_ID'],keep="first")
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Producto_ID'],copy=False)
+
+    aux=ant_ant_ant_ant.loc[:, ['Cliente_ID',"Producto_ID", 'Demanda_uni_equil']]
+    aux['lg4_pc']   = aux.groupby(['Cliente_ID',"Producto_ID"])['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Cliente_ID',"Producto_ID"],keep="first")
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID','Cliente_ID',"Producto_ID"],copy=False)
+
+    aux=ant_ant_ant_ant.loc[:, ['Cliente_ID', 'Demanda_uni_equil']]
+    aux['lg4_c']   = aux.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
+    aux = aux.reset_index()
+    aux=aux.drop_duplicates(subset=['Cliente_ID'],keep="first")
+    aux.drop(['index',"Demanda_uni_equil"],inplace=True,axis=1)
+    act=pd.merge(act,aux,how='left',on=['Cliente_ID'],copy=False)
+
     print (act.head())
     act.fillna(0, inplace=True)
-    act.drop(["Semana","Demanda_uni_equil"],inplace=True,axis=1)
+    act.drop(["Semana","Demanda_uni_equil",'Cliente_ID','Producto_ID','Ruta_SAK','Agencia_ID'],inplace=True,axis=1)
     print (act.head())
     return act.as_matrix()
 
@@ -245,13 +341,13 @@ def prepare_train_data(data,test,size=100000):
     mean_PC = pd.DataFrame({'meanPC':df_train.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].mean()}).reset_index()
     mean_P.drop_duplicates(subset=['Producto_ID'],keep="first")
     data=pd.merge(data,mean_P,how='left',on=['Producto_ID'],copy=False)
-    mean_P.drop_duplicates(subset=['Cliente_ID'],keep="first")
-    data=pd.merge(data,mean_C,how='left',on=["Cliente"],copy=False)
-    mean_P.drop_duplicates(subset=['Producto_ID',"Agencia_ID"],keep="first")
+    mean_C.drop_duplicates(subset=['Cliente_ID'],keep="first")
+    data=pd.merge(data,mean_C,how='left',on=["Cliente_ID"],copy=False)
+    mean_PA.drop_duplicates(subset=['Producto_ID',"Agencia_ID"],keep="first")
     data=pd.merge(data,mean_PA,how='left',on=['Producto_ID',"Agencia_ID"],copy=False)
-    mean_P.drop_duplicates(subset=['Producto_ID',"Ruta_SAK"],keep="first")
+    mean_PR.drop_duplicates(subset=['Producto_ID',"Ruta_SAK"],keep="first")
     data=pd.merge(data,mean_PR,how='left',on=['Producto_ID',"Ruta_SAK"],copy=False)
-    mean_P.drop_duplicates(subset=['Producto_ID',"Cliente_ID"],keep="first")
+    mean_PC.drop_duplicates(subset=['Producto_ID',"Cliente_ID"],keep="first")
     data=pd.merge(data,mean_PC,how='left',on=['Producto_ID',"Cliente_ID"],copy=False)
     del mean_P,mean_C
     del mean_PA,mean_PR,mean_PC
@@ -287,8 +383,6 @@ def prepare_train_data(data,test,size=100000):
     aux.drop(['index'],inplace=True,axis=1)
     test=pd.merge(test,aux,how='left',on=['Producto_ID','Cliente_ID'],copy=False)
 
-    for k,v in summary.iteritems():
-        del v
     data=pd.concat([data,test])
     #print (data.tail())
     verbose(data.info(memory_usage=True))
@@ -435,7 +529,7 @@ if __name__ == '__main__':
     print (test_size)
     train_test(features,labels,test_size)
     regressor=train(features,labels)
-    predictions=predweeks(weeks[-4:],regressor)
+    predictions=predweeks(weeks[-6:],regressor)
     print ("Pedicciones juntas: ")
     print (predictions)
     writesubmision(ids,predictions)
