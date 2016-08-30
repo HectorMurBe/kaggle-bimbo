@@ -3,10 +3,11 @@
 from __future__ import division, print_function  # Python 2 users only
 import numpy as np
 import pandas as pd
-import tensorflow.contrib.learn as skflow
-import tensorflow as tf
+#import tensorflow.contrib.learn as skflow
+#import tensorflow as tf
 from sklearn import metrics,preprocessing
 import xgboost as xgb
+import gc
 
 def temp(data,size):
     weeks=[]
@@ -49,7 +50,6 @@ def preproc_weeks(weeks):
         act=weeks[weeks.Semana==i]
         #ant=pd.concat([ant,ant_ant])
         """summary={}
-
         #summary['lg1_pc']   = ant.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
         #verbose("Calculated lg1_PC")
         summary['lg1_p']   = ant.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
@@ -70,7 +70,6 @@ def preproc_weeks(weeks):
         #verbose("Calculated lg2_PA")
         #summary['lg2_pr']   = ant.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
         #verbose("Calculated lg2_PR")
-
         #Second merge
         act['lg1_c']=summary['lg1_c']
         act['lg1_p']=summary['lg1_p']
@@ -140,7 +139,6 @@ def preproc_weeks2(weeks,target):
     act=weeks[weeks.Semana==i]
         #ant=pd.concat([ant,ant_ant])
     """summary={}
-
     #summary['lg1_pc']   = ant.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
     #verbose("Calculated lg1_PC")
     summary['lg1_p']   = ant.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
@@ -161,7 +159,6 @@ def preproc_weeks2(weeks,target):
     #verbose("Calculated lg2_PA")
     #summary['lg2_pr']   = ant_ant.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
     #verbose("Calculated lg2_PR")
-
         #Second merge
     act['lg1_c']=summary['lg1_c']
     act['lg1_p']=summary['lg1_p']
@@ -236,23 +233,29 @@ def prepare_train_data(data,test,size=100000):
     data['Demanda_uni_equil'] = np.log(data['Demanda_uni_equil'] + 1)
     test['Demanda_uni_equil'] = np.log(test['Demanda_uni_equil'] + 1)
     #print (data.tail(50))
-    summary={}
-    summary['meanP']   = data.groupby('Producto_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanP")
-    summary['meanC']   = data.groupby('Cliente_ID')['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanC")
-    summary['meanPA']  = data.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanPA")
-    summary['meanPR']  = data.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanPR")
-    summary['meanPC'] =  data.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].transform(np.mean).astype('float32')
-    verbose("Calculated meanPC")
-    verbose('Isolating weeks (again)')
-    data['meanP']=summary['meanP']
-    data['meanC']=summary['meanC']
-    data['meanPA']=summary['meanPA']
-    data['meanPR']=summary['meanPR']
-    data['meanPC']=summary['meanPC']
+    #mean by product
+    mean_P =  pd.DataFrame({'meanP':df_train.groupby('Producto_ID')['Demanda_uni_equil'].mean()}).reset_index()
+
+    mean_C =  pd.DataFrame({'meanC':df_train.groupby('Cliente_ID')['Demanda_uni_equil'].mean()}).reset_index()
+
+    mean_PA = pd.DataFrame({'meanPA':df_train.groupby(['Producto_ID','Agencia_ID'])['Demanda_uni_equil'].mean()}).reset_index()
+
+    mean_PR = pd.DataFrame({'meanPR':df_train.groupby(['Producto_ID','Ruta_SAK'])['Demanda_uni_equil'].mean()}).reset_index()
+
+    mean_PC = pd.DataFrame({'meanPC':df_train.groupby(['Producto_ID','Cliente_ID'])['Demanda_uni_equil'].mean()}).reset_index()
+    mean_P.drop_duplicates(subset=['Producto_ID'],keep="first")
+    data=pd.merge(data,mean_P,how='left',on=['Producto_ID'],copy=False)
+    mean_P.drop_duplicates(subset=['Cliente_ID'],keep="first")
+    data=pd.merge(data,mean_C,how='left',on=["Cliente"],copy=False)
+    mean_P.drop_duplicates(subset=['Producto_ID',"Agencia_ID"],keep="first")
+    data=pd.merge(data,mean_PA,how='left',on=['Producto_ID',"Agencia_ID"],copy=False)
+    mean_P.drop_duplicates(subset=['Producto_ID',"Ruta_SAK"],keep="first")
+    data=pd.merge(data,mean_PR,how='left',on=['Producto_ID',"Ruta_SAK"],copy=False)
+    mean_P.drop_duplicates(subset=['Producto_ID',"Cliente_ID"],keep="first")
+    data=pd.merge(data,mean_PC,how='left',on=['Producto_ID',"Cliente_ID"],copy=False)
+    del mean_P,mean_C
+    del mean_PA,mean_PR,mean_PC
+    gc.collect()
 
     aux=data[['Producto_ID','meanP']]
     aux = aux.reset_index()
